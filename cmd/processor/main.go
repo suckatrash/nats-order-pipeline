@@ -63,8 +63,8 @@ func main() {
 		// Simulated processing latency (~50ms).
 		time.Sleep(time.Duration(30+rand.IntN(40)) * time.Millisecond)
 
-		// ~5% rejection rate for realistic variety.
-		if rand.IntN(100) < 5 {
+		// ~10% rejection rate to stress-test downstream error handling.
+		if rand.IntN(100) < 10 {
 			order.Status = "rejected"
 			data, _ := json.Marshal(order)
 			if err := nc.Publish(natsutil.SubjectOrderRejected, data); err != nil {
