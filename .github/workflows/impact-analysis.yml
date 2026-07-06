@@ -20,24 +20,25 @@ jobs:
           fetch-depth: 0
 
       - name: Extract diff
-        run: git diff ${{ github.event.pull_request.base.sha }}..${{ github.sha }} > /tmp/change.diff
+        run: git diff ${{ github.event.pull_request.base.sha }}..${{ github.sha }} > $GITHUB_WORKSPACE/.change.diff
 
       - name: Write NATS credentials
-        run: echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > /tmp/insights.creds
+        run: echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > $GITHUB_WORKSPACE/.insights.creds
 
       - name: Run impact analysis
         uses: ./action
         with:
-          diff_file: /tmp/change.diff
+          diff_file: /github/workspace/.change.diff
           nats_server: ${{ secrets.INSIGHTS_NATS_SERVER }}
-          nats_creds: /tmp/insights.creds
+          nats_creds: /github/workspace/.insights.creds
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           model: claude-sonnet-4-20250514
+          output_file: /github/workspace/.analysis-output.md
 
       - name: Post PR comment
         if: success()
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body-file /tmp/analysis-output.md
+            --body-file $GITHUB_WORKSPACE/.analysis-output.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
