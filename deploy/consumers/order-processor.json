@@ -1,0 +1,8 @@
+{
+  "durable_name": "order-processor",
+  "filter_subject": "ORDERS.created",
+  "ack_policy": "explicit",
+  "max_ack_pending": 1000,
+  "ack_wait": 30000000000,
+  "description": "Processes incoming orders: validates and routes to processed/rejected"
+}

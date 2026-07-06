@@ -1,0 +1,30 @@
+name: 'NATS Impact Analysis'
+description: 'Analyze the impact of infrastructure changes using Claude and Insights'
+inputs:
+  diff_file:
+    description: 'Path to the diff file to analyze'
+    required: true
+  nats_server:
+    description: 'NATS server URL'
+    required: true
+  nats_creds:
+    description: 'Path to NATS credentials file'
+    required: true
+  anthropic_api_key:
+    description: 'Anthropic API key'
+    required: true
+  model:
+    description: 'Claude model to use'
+    required: false
+    default: 'claude-sonnet-4-20250514'
+  skill_file:
+    description: 'Path to the impact-analysis skill file'
+    required: false
+    default: '.claude/skills/impact-analysis/SKILL.md'
+  output_file:
+    description: 'Path to write the analysis output'
+    required: false
+    default: '/tmp/analysis-output.md'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'

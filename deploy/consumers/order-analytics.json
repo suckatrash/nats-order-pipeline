@@ -1,0 +1,8 @@
+{
+  "durable_name": "order-analytics",
+  "filter_subject": "ORDERS.>",
+  "ack_policy": "explicit",
+  "deliver_policy": "all",
+  "max_ack_pending": 5000,
+  "description": "Aggregates order metrics for analytics summaries"
+}

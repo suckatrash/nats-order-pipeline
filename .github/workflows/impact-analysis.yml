@@ -1,0 +1,43 @@
+name: Impact Analysis
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - 'cmd/**'
+      - 'internal/**'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract diff
+        run: git diff ${{ github.event.pull_request.base.sha }}..${{ github.sha }} > /tmp/change.diff
+
+      - name: Write NATS credentials
+        run: echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > /tmp/insights.creds
+
+      - name: Run impact analysis
+        uses: ./action
+        with:
+          diff_file: /tmp/change.diff
+          nats_server: ${{ secrets.INSIGHTS_NATS_SERVER }}
+          nats_creds: /tmp/insights.creds
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-20250514
+
+      - name: Post PR comment
+        if: success()
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body-file /tmp/analysis-output.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
