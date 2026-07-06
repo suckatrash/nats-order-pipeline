@@ -32,7 +32,7 @@ jobs:
           nats_server: ${{ secrets.INSIGHTS_NATS_SERVER }}
           nats_creds: /github/workspace/.insights.creds
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-20250514
+          model: claude-sonnet-4-6
           output_file: /github/workspace/.analysis-output.md
 
       - name: Post PR comment
