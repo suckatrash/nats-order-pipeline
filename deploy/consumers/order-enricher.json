@@ -1,0 +1,8 @@
+{
+  "durable_name": "order-enricher",
+  "filter_subject": "ORDERS.processed",
+  "ack_policy": "explicit",
+  "max_ack_pending": 500,
+  "ack_wait": 15000000000,
+  "description": "Enriches processed orders with customer context"
+}
