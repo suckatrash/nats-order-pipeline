@@ -4,12 +4,12 @@
   "retention": "limits",
   "max_consumers": -1,
   "max_msgs": -1,
-  "max_bytes": 5368709120,
-  "max_age": 0,
+  "max_bytes": 268435456,
+  "max_age": 86400000000000,
   "max_msg_size": -1,
   "storage": "file",
   "discard": "old",
-  "num_replicas": 3,
+  "num_replicas": 1,
   "duplicate_window": 120000000000,
   "description": "Order lifecycle events"
 }
