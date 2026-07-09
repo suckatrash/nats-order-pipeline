@@ -32,7 +32,9 @@ runs:
       uses: actions/setup-go@v5
       with:
         go-version-file: ${{ github.action_path }}/go.mod
-        cache-dependency-path: ${{ github.action_path }}/go.sum
+        # A glob, not an action_path reference: the cache pattern matcher
+        # rejects the './' segment action_path expands with.
+        cache-dependency-path: '**/go.sum'
 
     # The CLI source is vendored next to this action (see README.md) and
     # built fresh each run — no binaries are committed to the repo.
