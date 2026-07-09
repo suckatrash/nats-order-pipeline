@@ -1,30 +1,61 @@
 name: 'NATS Impact Analysis'
-description: 'Analyze the impact of infrastructure changes using Claude and Insights'
+description: 'One-shot impact analysis of an infrastructure diff against live NATS operational data (Insights)'
 inputs:
   diff_file:
-    description: 'Path to the diff file to analyze'
+    description: 'Path to the unified diff file to analyze'
     required: true
   nats_server:
-    description: 'NATS server URL'
+    description: 'Insights NATS server URL (exported as INSIGHTS_NATS_SERVER for impact.yaml expansion)'
     required: true
   nats_creds:
-    description: 'Path to NATS credentials file'
+    description: 'Path to the Insights NATS credentials file (exported as INSIGHTS_NATS_CREDS)'
     required: true
   anthropic_api_key:
     description: 'Anthropic API key'
     required: true
-  model:
-    description: 'Claude model to use'
+  config_file:
+    description: 'Path to an impact config file; empty means the binary auto-detects ./impact.yaml in the workspace'
     required: false
-    default: 'claude-sonnet-4-6'
-  skill_file:
-    description: 'Path to the impact-analysis skill file'
-    required: false
-    default: '.claude/skills/impact-analysis/SKILL.md'
+    default: ''
   output_file:
-    description: 'Path to write the analysis output'
+    description: 'Path to write the markdown report'
     required: false
-    default: '/tmp/analysis-output.md'
+    default: '/tmp/impact-report.md'
+  fail_on:
+    description: 'Fail the step (exit 2) when the risk level meets this threshold: low, medium, high, or critical'
+    required: false
+    default: ''
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ github.action_path }}/go.mod
+        cache-dependency-path: ${{ github.action_path }}/go.sum
+
+    # The CLI source is vendored next to this action (see README.md) and
+    # built fresh each run — no binaries are committed to the repo.
+    - name: Build impact CLI
+      shell: bash
+      run: cd "${{ github.action_path }}" && go build -o /tmp/impact ./cmd/impact
+
+    - name: Run impact analysis
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        INSIGHTS_NATS_SERVER: ${{ inputs.nats_server }}
+        INSIGHTS_NATS_CREDS: ${{ inputs.nats_creds }}
+        DIFF_FILE: ${{ inputs.diff_file }}
+        CONFIG_FILE: ${{ inputs.config_file }}
+        OUTPUT_FILE: ${{ inputs.output_file }}
+        FAIL_ON: ${{ inputs.fail_on }}
+      run: |
+        args=(analyze --repo . --diff "$DIFF_FILE" --output "$OUTPUT_FILE")
+        if [ -n "$CONFIG_FILE" ]; then
+          args=(--config "$CONFIG_FILE" "${args[@]}")
+        fi
+        if [ -n "$FAIL_ON" ]; then
+          args+=(--fail-on "$FAIL_ON")
+        fi
+        /tmp/impact "${args[@]}"

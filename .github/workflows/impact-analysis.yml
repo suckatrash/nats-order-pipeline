@@ -15,30 +15,39 @@ jobs:
       contents: read
 
     steps:
+      # Full history: the checkout doubles as the agent's --repo clone, and
+      # depth is the caller's (our) choice of how much change context the
+      # agent gets. fetch-depth: 0 also guarantees the diff base is present.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Extract diff
-        run: git diff ${{ github.event.pull_request.base.sha }}..${{ github.sha }} > $GITHUB_WORKSPACE/.change.diff
+        run: git diff ${{ github.event.pull_request.base.sha }}..${{ github.sha }} > /tmp/change.diff
 
       - name: Write NATS credentials
-        run: echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > $GITHUB_WORKSPACE/.insights.creds
+        run: |
+          echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > /tmp/insights.creds
+          chmod 600 /tmp/insights.creds
 
+      # The action runs the impact binary committed at bin/ against the
+      # config in impact.yaml at the repo root; ${VAR} references in the
+      # config expand from the env the action sets.
       - name: Run impact analysis
         uses: ./action
         with:
-          diff_file: /github/workspace/.change.diff
+          diff_file: /tmp/change.diff
           nats_server: ${{ secrets.INSIGHTS_NATS_SERVER }}
-          nats_creds: /github/workspace/.insights.creds
+          nats_creds: /tmp/insights.creds
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-6
-          output_file: /github/workspace/.analysis-output.md
+          output_file: /tmp/report.md
 
+      # Publishing the report is the caller's job — the tool itself never
+      # talks to GitHub.
       - name: Post PR comment
         if: success()
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body-file $GITHUB_WORKSPACE/.analysis-output.md
+            --body-file /tmp/report.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

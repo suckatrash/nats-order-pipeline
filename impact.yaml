@@ -1,0 +1,15 @@
+# Configuration for the impact CLI (bin/impact-linux-amd64), run by
+# .github/workflows/impact-analysis.yml on pull requests.
+#
+# ${VAR} references expand from the environment at load time. The Anthropic
+# API key is picked up from ANTHROPIC_API_KEY automatically.
+
+agent:
+  provider: anthropic
+  model: claude-opus-4-8
+
+datasources:
+  insights:
+    # The Insights query API over NATS ($INS.db.*).
+    endpoint: ${INSIGHTS_NATS_SERVER}
+    creds: ${INSIGHTS_NATS_CREDS}
