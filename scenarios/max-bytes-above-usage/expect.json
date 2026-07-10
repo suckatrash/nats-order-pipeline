@@ -1,7 +1,6 @@
 {
-  "description": "max_bytes cut from 5GiB to 3GiB, still above live usage; bait for LIMIT_VIOLATION",
-  "assumes": "ORDERS stream holds under 3GiB (seeded lab state, ~2.16GiB as of 2026-07-09)",
-  "risk": "low",
+  "description": "max_bytes cut from 5GiB to 3GiB, above current usage; bait for LIMIT_VIOLATION. HEADROOM_EXHAUSTION is legitimate here when the lab stream's growth rate projects it across 3GiB within the horizon — the assertion is only that the critical codes stay quiet.",
+  "assumes": "ORDERS stream holds under 3GiB (~2.75GiB as of 2026-07-10, growing)",
   "must": [],
   "must_not": ["LIMIT_VIOLATION", "DATA_LOSS"]
 }

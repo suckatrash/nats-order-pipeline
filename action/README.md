@@ -10,7 +10,7 @@ The `impact` CLI source is **vendored** here (`impact/`, `cmd/impact/`)
 so the action is self-contained and builds at run time — no binaries
 are committed. The source of truth is the
 `github.com/ConnectEverything/insights` repo (`impact/` and
-`cmd/impact/`); this copy was taken at commit `d5ce030`.
+`cmd/impact/`); this copy was taken at commit `d20a208`.
 
 To re-vendor after upstream changes:
 
