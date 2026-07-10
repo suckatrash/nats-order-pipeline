@@ -80,11 +80,15 @@ func NewProvider(cfg AgentConfig) (Provider, error) {
 }
 
 // httpDo posts a JSON payload and retries transient failures — transport
-// errors, 429, and 5xx — with a short backoff. The context bounds the whole
+// errors, 429, and 5xx — with exponential backoff (1s doubling, capped at
+// 30s, 6 attempts ≈ 1m of waiting). Capacity blips like 529 Overloaded
+// routinely outlast a short backoff, and abandoning a half-finished analysis
+// costs far more than waiting out the blip. The context bounds the whole
 // exchange, so the run timeout still wins over retries. Non-retryable
 // statuses (4xx other than 429) are returned to the caller, which owns
 // reading the error body.
 func httpDo(ctx context.Context, client *http.Client, req func() (*http.Request, error)) (*http.Response, error) {
+	const maxAttempts = 6
 	backoff := time.Second
 	for attempt := 0; ; attempt++ {
 		r, err := req()
@@ -105,7 +109,7 @@ func httpDo(ctx context.Context, client *http.Client, req func() (*http.Request,
 			resp.Body.Close()
 			reason = fmt.Sprintf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 		}
-		if attempt >= 2 {
+		if attempt >= maxAttempts-1 {
 			return nil, fmt.Errorf("API request failed after %d attempts: %s", attempt+1, reason)
 		}
 		select {
@@ -113,6 +117,6 @@ func httpDo(ctx context.Context, client *http.Client, req func() (*http.Request,
 			return nil, ctx.Err()
 		case <-time.After(backoff):
 		}
-		backoff *= 4
+		backoff = min(backoff*2, 30*time.Second)
 	}
 }
