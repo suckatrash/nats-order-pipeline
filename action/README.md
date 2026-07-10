@@ -8,9 +8,12 @@ NATS), then writes a markdown report for the caller to publish.
 
 The `impact` CLI source is **vendored** here (`impact/`, `cmd/impact/`)
 so the action is self-contained and builds at run time — no binaries
-are committed. The source of truth is the
+are committed. This copy was taken from the
 `github.com/ConnectEverything/insights` repo (`impact/` and
-`cmd/impact/`); this copy was taken at commit `d20a208`.
+`cmd/impact/`) at commit `f8b2782` and has since diverged: HTTP retry
+hardening (`provider.go`) and the prometheus datasource
+(`prometheus_source.go`) exist only here. Treat this copy as the
+working source until the tool gets its own repo.
 
 To re-vendor after upstream changes:
 
@@ -26,8 +29,9 @@ cd action && go mod tidy && go test ./...
 
 See `action.yml`. Configuration beyond the inputs (model, token
 budget, finding thresholds) comes from `impact.yaml` in the caller's
-workspace; `${INSIGHTS_NATS_SERVER}` / `${INSIGHTS_NATS_CREDS}`
-references in it expand from the env this action sets.
+workspace; `${INSIGHTS_NATS_SERVER}` / `${INSIGHTS_NATS_CREDS}` /
+`${PROMETHEUS_PASSWORD}` references in it expand from the env this
+action sets.
 
 ## Publishing
 

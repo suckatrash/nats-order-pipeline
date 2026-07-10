@@ -17,7 +17,9 @@ RUNS="${RUNS:-1}"
 MODEL="${IMPACT_MODEL:-claude-sonnet-5}"
 ONLY="${1:-}"
 
-for v in ANTHROPIC_API_KEY INSIGHTS_NATS_SERVER INSIGHTS_NATS_CREDS; do
+# PROMETHEUS_PASSWORD is required because impact.yaml declares the prometheus
+# datasource — an unauthenticated source fails the health check, not the auth.
+for v in ANTHROPIC_API_KEY INSIGHTS_NATS_SERVER INSIGHTS_NATS_CREDS PROMETHEUS_PASSWORD; do
   [ -n "${!v:-}" ] || { echo "error: $v is not set" >&2; exit 1; }
 done
 command -v jq >/dev/null || { echo "error: jq is required" >&2; exit 1; }

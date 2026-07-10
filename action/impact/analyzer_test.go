@@ -61,7 +61,7 @@ func (s *fakeSource) Describe(context.Context) (string, error) {
 func (s *fakeSource) HealthCheck(context.Context) error { return nil }
 func (s *fakeSource) Tools() []Tool {
 	return []Tool{{
-		Def: ToolDef{Name: "test_query", Description: "q", InputSchema: json.RawMessage(`{"type":"object"}`)},
+		Def: ToolDef{Name: "test_query", Description: "q", InputSchema: json.RawMessage(`{"type":"object","properties":{"sql":{"type":"string"}}}`)},
 		Handler: func(_ context.Context, input json.RawMessage) (string, bool) {
 			s.queries = append(s.queries, string(input))
 			return `[{"lag":41203}]`, false

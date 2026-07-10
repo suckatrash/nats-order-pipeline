@@ -13,3 +13,10 @@ datasources:
     # The Insights query API over NATS ($INS.db.*).
     endpoint: ${INSIGHTS_NATS_SERVER}
     creds: ${INSIGHTS_NATS_CREDS}
+  prometheus:
+    # Infrastructure-layer metrics for the lab cluster: kube-state-metrics,
+    # node-exporter, and the NATS prom-exporter sidecar. Basic auth is
+    # enforced at the ingress.
+    url: https://prometheus.gcp.iamusingtheinternet.com
+    username: impact
+    password: ${PROMETHEUS_PASSWORD}

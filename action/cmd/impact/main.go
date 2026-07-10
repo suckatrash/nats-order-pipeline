@@ -16,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/suckatrash/nats-order-pipeline/action/impact"
 	"github.com/alecthomas/kong"
+	"github.com/suckatrash/nats-order-pipeline/action/impact"
 )
 
 // errFailOn signals the --fail-on threshold was met; main maps it to exit 2.
@@ -110,6 +110,14 @@ func (a *analyzeCmd) Run(c *cli) error {
 		return err
 	}
 	defer closeSource()
+	sources := []impact.DataSource{source}
+	if cfg.Datasources.Prometheus != nil {
+		prom, err := impact.ConnectPrometheus(cfg.Datasources.Prometheus)
+		if err != nil {
+			return err
+		}
+		sources = append(sources, prom)
+	}
 
 	var repo *impact.RepoTools
 	if a.Repo != "" {
@@ -124,7 +132,7 @@ func (a *analyzeCmd) Run(c *cli) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	analyzer := impact.NewAnalyzer(cfg, provider, []impact.DataSource{source}, repo, log)
+	analyzer := impact.NewAnalyzer(cfg, provider, sources, repo, log)
 	report, err := analyzer.Run(ctx, diff)
 	if err != nil {
 		return err

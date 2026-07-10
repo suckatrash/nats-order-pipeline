@@ -77,16 +77,26 @@ type FindingsConfig struct {
 	HeadroomHorizon Duration `yaml:"headroom_horizon"`
 }
 
-// DatasourcesConfig lists the configured data sources. At least one is
-// required; insights is the only implementation today.
+// DatasourcesConfig lists the configured data sources. Insights is required;
+// prometheus is optional and adds infrastructure-layer visibility.
 type DatasourcesConfig struct {
-	Insights *InsightsConfig `yaml:"insights"`
+	Insights   *InsightsConfig   `yaml:"insights"`
+	Prometheus *PrometheusConfig `yaml:"prometheus"`
 }
 
 // InsightsConfig connects to the Insights query API over NATS.
 type InsightsConfig struct {
 	Endpoint string `yaml:"endpoint"`
 	Creds    string `yaml:"creds"`
+}
+
+// PrometheusConfig connects to a Prometheus HTTP API. Username/password are
+// sent as basic auth when set (e.g. an auth-enforcing ingress in front of the
+// server).
+type PrometheusConfig struct {
+	URL      string `yaml:"url"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 // DefaultConfig returns the documented defaults; LoadConfig layers the file
@@ -177,6 +187,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Datasources.Insights.Endpoint == "" {
 		return fmt.Errorf("datasources.insights.endpoint is required")
+	}
+	if p := c.Datasources.Prometheus; p != nil && p.URL == "" {
+		return fmt.Errorf("datasources.prometheus.url is required when the source is configured")
 	}
 	return nil
 }

@@ -66,7 +66,7 @@ func (a *Analyzer) Run(ctx context.Context, diff string) (*Report, error) {
 	add := func(source string, ts []Tool) {
 		for _, t := range ts {
 			if source != "" {
-				t.Handler = recordingHandler(evlog, source, t.Handler)
+				t.Handler = recordingHandler(evlog, source, t.Def, t.Handler)
 			}
 			tools[t.Def.Name] = t
 			defs = append(defs, t.Def)

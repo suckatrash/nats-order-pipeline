@@ -12,7 +12,7 @@ import (
 func TestEvidenceLogVerify(t *testing.T) {
 	is := is.New(t)
 	l := newEvidenceLog()
-	l.record("insights", json.RawMessage(`{"sql":"SELECT msgs, bytes FROM hx.stream_replica_stats WHERE stream_pk=3"}`))
+	l.record("insights", json.RawMessage(`{"sql":"SELECT msgs, bytes FROM hx.stream_replica_stats WHERE stream_pk=3"}`), map[string]bool{"sql": true})
 
 	// Verbatim citation passes.
 	is.NoErr(l.verify(Evidence{Source: "insights", Query: "SELECT msgs, bytes FROM hx.stream_replica_stats WHERE stream_pk=3"}))
@@ -29,7 +29,7 @@ func TestEvidenceLogVerify(t *testing.T) {
 	is.True(l.verify(Evidence{Source: "insights", Query: "SELECT msgs, bytes FROM hx.stream_replica_stats WHERE stream_pk=3 AND deleted=1"}) != nil)
 	// A table name seen only in a discovery call does not license a
 	// fabricated query mentioning it: discovery inputs are not citable.
-	l.record("insights", json.RawMessage(`{"schema":"hx","table":"consumer_ident"}`))
+	l.record("insights", json.RawMessage(`{"schema":"hx","table":"consumer_ident"}`), map[string]bool{})
 	is.True(l.verify(Evidence{Source: "insights", Query: "SELECT * FROM hx.consumer_ident"}) != nil)
 	// An unknown source is rejected with the known ones listed.
 	err = l.verify(Evidence{Source: "prometheus", Query: "up"})
@@ -50,26 +50,29 @@ func TestEvidenceLogRepoCitations(t *testing.T) {
 	is.True(err != nil)
 
 	// Repo tool inputs record their citable fields too.
-	l.record("repo", json.RawMessage(`{"path":"cmd/enricher/main.go"}`))
+	l.record("repo", json.RawMessage(`{"path":"cmd/enricher/main.go"}`), map[string]bool{"path": true})
 	is.NoErr(l.verify(Evidence{Source: "repo", Query: "cmd/enricher/main.go:41"}))
 }
 
 func TestEvidenceLogContainmentGuard(t *testing.T) {
 	is := is.New(t)
 	l := newEvidenceLog()
-	l.record("insights", json.RawMessage(`{"sql":"x"}`))
+	l.record("insights", json.RawMessage(`{"sql":"x"}`), map[string]bool{"sql": true})
 	// Short fragments only match exactly — "x" must not substring-match
 	// its way into verifying an arbitrary citation.
 	is.NoErr(l.verify(Evidence{Source: "insights", Query: "x"}))
 	is.True(l.verify(Evidence{Source: "insights", Query: "SELECT x FROM y"}) != nil)
 }
 
+// sqlToolDef declares a single citable "sql" input, mirroring insights_query.
+var sqlToolDef = ToolDef{InputSchema: json.RawMessage(`{"type":"object","properties":{"sql":{"type":"string"}}}`)}
+
 func TestRecordingHandlerSkipsFailedCalls(t *testing.T) {
 	is := is.New(t)
 	l := newEvidenceLog()
 	// A failed call is not citable evidence and must not be recorded; a
 	// successful one is.
-	fail := recordingHandler(l, "insights", func(_ context.Context, _ json.RawMessage) (string, bool) {
+	fail := recordingHandler(l, "insights", sqlToolDef, func(_ context.Context, _ json.RawMessage) (string, bool) {
 		return "syntax error", true
 	})
 	_, isErr := fail(context.Background(), json.RawMessage(`{"sql":"SELECT broken"}`))
@@ -77,17 +80,32 @@ func TestRecordingHandlerSkipsFailedCalls(t *testing.T) {
 	is.True(l.verify(Evidence{Source: "insights", Query: "SELECT broken"}) != nil)
 
 	// A search that matched nothing is not citable work either.
-	empty := recordingHandler(l, "repo", func(_ context.Context, _ json.RawMessage) (string, bool) {
+	patternDef := ToolDef{InputSchema: json.RawMessage(`{"type":"object","properties":{"pattern":{"type":"string"}}}`)}
+	empty := recordingHandler(l, "repo", patternDef, func(_ context.Context, _ json.RawMessage) (string, bool) {
 		return "(no matches)", false
 	})
 	_, isErr = empty(context.Background(), json.RawMessage(`{"pattern":"missing_setting"}`))
 	is.True(!isErr)
 	is.True(l.verify(Evidence{Source: "repo", Query: "missing_setting"}) != nil)
 
-	ok := recordingHandler(l, "insights", func(_ context.Context, _ json.RawMessage) (string, bool) {
+	ok := recordingHandler(l, "insights", sqlToolDef, func(_ context.Context, _ json.RawMessage) (string, bool) {
 		return "[]", false
 	})
 	_, isErr = ok(context.Background(), json.RawMessage(`{"sql":"SELECT broken"}`))
 	is.True(!isErr)
 	is.NoErr(l.verify(Evidence{Source: "insights", Query: "SELECT broken"}))
+}
+
+func TestRecordingHandlerIgnoresSmuggledFields(t *testing.T) {
+	is := is.New(t)
+	l := newEvidenceLog()
+	// A citable key padded onto a tool whose schema does not declare it must
+	// not be recorded: a discovery call cannot license a fabricated query.
+	discoveryDef := ToolDef{InputSchema: json.RawMessage(`{"type":"object","properties":{"match":{"type":"string"}}}`)}
+	h := recordingHandler(l, "prometheus", discoveryDef, func(_ context.Context, _ json.RawMessage) (string, bool) {
+		return `["node_cpu_seconds_total"]`, false
+	})
+	_, isErr := h(context.Background(), json.RawMessage(`{"match":"node_.+","query":"sum(fabricated_metric)"}`))
+	is.True(!isErr)
+	is.True(l.verify(Evidence{Source: "prometheus", Query: "sum(fabricated_metric)"}) != nil)
 }

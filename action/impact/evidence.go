@@ -36,14 +36,17 @@ func normalizeCitation(s string) string {
 }
 
 // citableKeys are the tool-input fields whose values constitute citable work:
-// executed SQL and the repo tools' path/pattern/ref arguments. Discovery-tool
-// inputs (schema and table names) are deliberately excluded — a table name
-// seen during discovery must not license a fabricated query that mentions it.
-var citableKeys = map[string]bool{"sql": true, "path": true, "pattern": true, "ref": true}
+// executed SQL, PromQL expressions, and the repo tools' path/pattern/ref
+// arguments. Discovery-tool inputs (schema and table names, metric-name and
+// label-value filters) are deliberately excluded — a name seen during
+// discovery must not license a fabricated query that mentions it.
+var citableKeys = map[string]bool{"sql": true, "query": true, "path": true, "pattern": true, "ref": true}
 
 // record captures the citable fields of a successful tool input under the
-// owning source.
-func (l *evidenceLog) record(source string, input json.RawMessage) {
+// owning source. allowed restricts recording to the fields the tool's input
+// schema declares — a padded input cannot smuggle a citable value onto a tool
+// that does not execute it.
+func (l *evidenceLog) record(source string, input json.RawMessage, allowed map[string]bool) {
 	var parsed any
 	if err := json.Unmarshal(input, &parsed); err != nil {
 		return
@@ -54,7 +57,7 @@ func (l *evidenceLog) record(source string, input json.RawMessage) {
 		switch t := v.(type) {
 		case map[string]any:
 			for k, mv := range t {
-				if s, ok := mv.(string); ok && citableKeys[k] {
+				if s, ok := mv.(string); ok && allowed[k] {
 					if n := normalizeCitation(s); n != "" {
 						l.recorded[key] = append(l.recorded[key], n)
 					}
@@ -69,6 +72,24 @@ func (l *evidenceLog) record(source string, input json.RawMessage) {
 		}
 	}
 	walk(parsed)
+}
+
+// citableFields intersects a tool's declared input properties with the
+// globally citable keys.
+func citableFields(schema json.RawMessage) map[string]bool {
+	var s struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	allowed := map[string]bool{}
+	if err := json.Unmarshal(schema, &s); err != nil {
+		return allowed
+	}
+	for k := range s.Properties {
+		if citableKeys[k] {
+			allowed[k] = true
+		}
+	}
+	return allowed
 }
 
 // recordText seeds the log with material the agent received without a tool
@@ -118,13 +139,15 @@ func (l *evidenceLog) verify(e Evidence) error {
 }
 
 // recordingHandler logs the tool input to the evidence log when the call
-// succeeds — a failed query is not citable evidence, and neither is a search
-// that matched nothing.
-func recordingHandler(evlog *evidenceLog, source string, h func(context.Context, json.RawMessage) (string, bool)) func(context.Context, json.RawMessage) (string, bool) {
+// succeeds — a failed query is not citable evidence, and neither is a repo
+// search that matched nothing. (Empty-but-successful query results are still
+// recorded; the citation gate verifies the query ran, not what it returned.)
+func recordingHandler(evlog *evidenceLog, source string, def ToolDef, h func(context.Context, json.RawMessage) (string, bool)) func(context.Context, json.RawMessage) (string, bool) {
+	allowed := citableFields(def.InputSchema)
 	return func(ctx context.Context, input json.RawMessage) (string, bool) {
 		content, isErr := h(ctx, input)
-		if !isErr && content != "(no matches)" {
-			evlog.record(source, input)
+		if !isErr && content != "(no matches)" && len(allowed) > 0 {
+			evlog.record(source, input, allowed)
 		}
 		return content, isErr
 	}

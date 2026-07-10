@@ -9,6 +9,8 @@ Assess the blast radius of proposed NATS infrastructure changes against live ope
 
 **Prerequisite:** This skill depends on the `query-insights` skill for schema discovery and query mechanics. Use `insights db columns`, `insights db tables`, and `insights db macros` to verify column names and table structure before writing any query — never assume a column exists.
 
+**Additional data sources:** When the environment configures sources beyond Insights (e.g. `prometheus`), their tool documentation accompanies this skill. Use them for the layer Insights does not record — node and filesystem capacity, Kubernetes object state, resource requests and limits — and to correlate infrastructure identifiers in the diff with live NATS entities (a pod or StatefulSet name observed in metrics that matches a server name in Insights is citable binding evidence). Each source is its own evidence source name; the same verbatim-citation rule applies.
+
 **When to use:** A user presents a proposed change to NATS infrastructure (stream config, account limits, consumer lifecycle, server topology) and wants to understand the operational impact before applying it. The change may arrive as a diff, a structured description, or natural language.
 
 **One-shot operation:** Produce the complete report in a single pass. Do not ask clarifying questions or pause for confirmation at any step — when the input is ambiguous, record the interpretation (or the ambiguity itself) in the report and proceed with what the data can establish. This skill doubles as the system-prompt guidance for the `impact` CLI agent, which has no user to ask.

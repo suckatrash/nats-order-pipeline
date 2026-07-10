@@ -8,7 +8,7 @@ optionally the exact expected risk level. `run.sh` builds the CLI from
 asserts on the JSON output — codes and risk only, never prose.
 
 ```sh
-export ANTHROPIC_API_KEY=... INSIGHTS_NATS_SERVER=... INSIGHTS_NATS_CREDS=...
+export ANTHROPIC_API_KEY=... INSIGHTS_NATS_SERVER=... INSIGHTS_NATS_CREDS=... PROMETHEUS_PASSWORD=...
 scenarios/run.sh                      # full suite
 scenarios/run.sh replica-drop-noop    # one scenario
 RUNS=3 scenarios/run.sh               # consistency check: codes must be stable

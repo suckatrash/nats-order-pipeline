@@ -13,6 +13,10 @@ inputs:
   anthropic_api_key:
     description: 'Anthropic API key'
     required: true
+  prometheus_password:
+    description: 'Basic-auth password for the Prometheus datasource (exported as PROMETHEUS_PASSWORD); required only when the config declares a prometheus source'
+    required: false
+    default: ''
   config_file:
     description: 'Path to an impact config file; empty means the binary auto-detects ./impact.yaml in the workspace'
     required: false
@@ -48,6 +52,7 @@ runs:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         INSIGHTS_NATS_SERVER: ${{ inputs.nats_server }}
         INSIGHTS_NATS_CREDS: ${{ inputs.nats_creds }}
+        PROMETHEUS_PASSWORD: ${{ inputs.prometheus_password }}
         DIFF_FILE: ${{ inputs.diff_file }}
         CONFIG_FILE: ${{ inputs.config_file }}
         OUTPUT_FILE: ${{ inputs.output_file }}

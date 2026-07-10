@@ -30,7 +30,7 @@ jobs:
           echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > /tmp/insights.creds
           chmod 600 /tmp/insights.creds
 
-      # The action runs the impact binary committed at bin/ against the
+      # The action builds the impact CLI from action/ and runs it against the
       # config in impact.yaml at the repo root; ${VAR} references in the
       # config expand from the env the action sets.
       - name: Run impact analysis
@@ -40,6 +40,7 @@ jobs:
           nats_server: ${{ secrets.INSIGHTS_NATS_SERVER }}
           nats_creds: /tmp/insights.creds
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prometheus_password: ${{ secrets.PROMETHEUS_PASSWORD }}
           output_file: /tmp/report.md
 
       # Publishing the report is the caller's job — the tool itself never
