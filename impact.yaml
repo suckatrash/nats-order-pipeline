@@ -1,4 +1,4 @@
-# Configuration for the impact CLI (bin/impact-linux-amd64), run by
+# Configuration for the impact CLI (built from action/), run by
 # .github/workflows/impact-analysis.yml on pull requests.
 #
 # ${VAR} references expand from the environment at load time. The Anthropic

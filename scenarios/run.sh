@@ -3,13 +3,18 @@
 # against the live lab Insights and assert on the JSON finding codes.
 #
 # Required env: ANTHROPIC_API_KEY, INSIGHTS_NATS_SERVER, INSIGHTS_NATS_CREDS
-# Optional:     RUNS=N   repeat each scenario N times (consistency check)
+# Optional:     RUNS=N          repeat each scenario N times (consistency check)
+#               IMPACT_MODEL=…  model for eval runs; defaults to a lighter
+#                               model than the PR-analysis config to keep the
+#                               suite cheap. Set to claude-opus-4-8 for a
+#                               production-parity gate run.
 # Usage:        scenarios/run.sh [scenario-name]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${IMPACT_BIN:-$(mktemp -d)/impact}"
 RUNS="${RUNS:-1}"
+MODEL="${IMPACT_MODEL:-claude-sonnet-5}"
 ONLY="${1:-}"
 
 for v in ANTHROPIC_API_KEY INSIGHTS_NATS_SERVER INSIGHTS_NATS_CREDS; do
@@ -31,7 +36,7 @@ for dir in "$ROOT"/scenarios/*/; do
     out="$dir/last-report.json"
     log="$dir/last-run.log"
     if ! "$BIN" analyze --repo "$ROOT" --diff "$dir/scenario.diff" \
-        --format json -c "$ROOT/impact.yaml" >"$out" 2>"$log"; then
+        --model "$MODEL" --format json -c "$ROOT/impact.yaml" >"$out" 2>"$log"; then
       echo "FAIL $name (run $run): analyze exited non-zero, see $log"
       fail=$((fail + 1)); continue
     fi

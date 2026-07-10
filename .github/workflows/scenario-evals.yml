@@ -11,6 +11,10 @@ on:
         description: 'Repeats per scenario (consistency check)'
         required: false
         default: '1'
+      model:
+        description: 'Model override (empty = run.sh default, a lighter model than PR analysis uses)'
+        required: false
+        default: ''
 
 jobs:
   evals:
@@ -34,6 +38,7 @@ jobs:
           INSIGHTS_NATS_SERVER: ${{ secrets.INSIGHTS_NATS_SERVER }}
           INSIGHTS_NATS_CREDS: /tmp/insights.creds
           RUNS: ${{ inputs.runs }}
+          IMPACT_MODEL: ${{ inputs.model }}
         run: scenarios/run.sh ${{ inputs.scenario }}
 
       - name: Upload reports

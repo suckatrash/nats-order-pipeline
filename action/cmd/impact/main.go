@@ -35,6 +35,7 @@ type analyzeCmd struct {
 	Output  string        `short:"o" help:"Write the report to a file instead of stdout." type:"path"`
 	FailOn  string        `help:"Exit with code 2 if the risk level meets the threshold." enum:",low,medium,high,critical" default:""`
 	Timeout time.Duration `help:"Override the configured max analysis duration."`
+	Model   string        `help:"Override the configured model for this run."`
 }
 
 func main() {
@@ -73,6 +74,9 @@ func (a *analyzeCmd) Run(c *cli) error {
 	}
 	if a.Timeout > 0 {
 		cfg.Agent.Timeout = impact.Duration(a.Timeout)
+	}
+	if a.Model != "" {
+		cfg.Agent.Model = a.Model
 	}
 	// The Anthropic/OpenAI conventions for key material are the natural
 	// fallback when the config file does not carry a key.
