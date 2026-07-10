@@ -1,0 +1,13 @@
+diff --git a/deploy/consumers/order-billing.json b/deploy/consumers/order-billing.json
+index 1111111..2222222 100644
+--- a/deploy/consumers/order-billing.json
++++ b/deploy/consumers/order-billing.json
+@@ -2,7 +2,7 @@
+   "durable_name": "order-billing",
+   "filter_subject": "ORDERS.processed",
+   "ack_policy": "explicit",
+-  "max_ack_pending": 500,
++  "max_ack_pending": 50,
+   "ack_wait": 30000000000,
+   "description": "Emits invoices for processed orders"
+ }

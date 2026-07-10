@@ -151,7 +151,7 @@ func TestAnalyzerTokenBudgetTruncates(t *testing.T) {
 	provider := &fakeProvider{turns: []*Turn{
 		{
 			ToolCalls: []ToolCall{
-				{ID: "1", Name: "test_query", Input: json.RawMessage(`{}`)},
+				{ID: "1", Name: "test_query", Input: json.RawMessage(`{"sql":"q"}`)},
 				{ID: "2", Name: "emit_finding", Input: json.RawMessage(`{"code":"FT_LOSS","summary":"r1","evidence":[{"source":"test","query":"q","value":"v","epoch":"e"}]}`)},
 			},
 			Usage: TokenUsage{InputTokens: 90, OutputTokens: 20},
@@ -213,6 +213,51 @@ func TestAnalyzerUnknownToolSurfacesError(t *testing.T) {
 	is.NoErr(err)
 	is.True(provider.sent[1].results[0].IsError)
 	is.True(strings.Contains(provider.sent[1].results[0].Content, "unknown tool"))
+}
+
+func TestAnalyzerRejectsUnverifiedEvidence(t *testing.T) {
+	is := is.New(t)
+	src := &fakeSource{}
+	provider := &fakeProvider{turns: []*Turn{
+		{
+			ToolCalls: []ToolCall{
+				{ID: "1", Name: "test_query", Input: json.RawMessage(`{"sql":"SELECT lag"}`)},
+				// Cites a query that was never executed this run.
+				{ID: "2", Name: "emit_finding", Input: json.RawMessage(`{"code":"DATA_LOSS","summary":"s","evidence":[{"source":"test","query":"SELECT bytes FROM somewhere_else","value":"v","epoch":"e"}]}`)},
+			},
+		},
+		{Text: "done", StopReason: "end_turn"},
+	}}
+	a := NewAnalyzer(testConfig(), provider, []DataSource{src}, nil, nil)
+	report, err := a.Run(context.Background(), "diff")
+	is.NoErr(err)
+	// The finding was rejected and the model was told why.
+	is.Equal(len(report.Findings), 0)
+	is.True(provider.sent[1].results[1].IsError)
+	is.True(strings.Contains(provider.sent[1].results[1].Content, "was not executed"))
+}
+
+func TestAnalyzerDiffSeededRepoEvidence(t *testing.T) {
+	is := is.New(t)
+	// No repo tools attached: file:line citations must still verify against
+	// the diff itself, for findings and notes alike.
+	provider := &fakeProvider{turns: []*Turn{
+		{
+			ToolCalls: []ToolCall{
+				{ID: "1", Name: "emit_finding", Input: json.RawMessage(`{"code":"UNRESOLVED_ENTITY","summary":"s","evidence":[{"source":"repo","query":"deploy/streams/orders.json:8","value":"max_bytes changed"}]}`)},
+				{ID: "2", Name: "emit_note", Input: json.RawMessage(`{"text":"n","evidence":[{"source":"repo","query":"deploy/streams/orders.json:12","value":"replicas changed"}]}`)},
+				{ID: "3", Name: "emit_note", Input: json.RawMessage(`{"text":"bad","evidence":[{"source":"repo","query":"deploy/other/file.json:1","value":"v"}]}`)},
+			},
+		},
+		{Text: "done", StopReason: "end_turn"},
+	}}
+	a := NewAnalyzer(testConfig(), provider, []DataSource{&fakeSource{}}, nil, nil)
+	report, err := a.Run(context.Background(), "diff --git a/deploy/streams/orders.json b/deploy/streams/orders.json\n-  \"max_bytes\": 5368709120,\n+  \"max_bytes\": 268435456,")
+	is.NoErr(err)
+	is.Equal(len(report.Findings), 1)
+	is.Equal(len(report.Notes), 1)
+	// The note citing a file absent from the diff bounced.
+	is.True(provider.sent[1].results[2].IsError)
 }
 
 // failingSource fails its health check.

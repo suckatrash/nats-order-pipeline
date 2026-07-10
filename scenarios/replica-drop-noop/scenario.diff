@@ -1,0 +1,13 @@
+diff --git a/deploy/streams/orders.json b/deploy/streams/orders.json
+index 1627da9..18834fc 100644
+--- a/deploy/streams/orders.json
++++ b/deploy/streams/orders.json
+@@ -9,7 +9,7 @@
+   "max_msg_size": -1,
+   "storage": "file",
+   "discard": "old",
+-  "num_replicas": 3,
++  "num_replicas": 1,
+   "duplicate_window": 120000000000,
+   "description": "Order lifecycle events"
+ }

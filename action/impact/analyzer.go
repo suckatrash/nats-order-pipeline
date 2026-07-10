@@ -53,24 +53,34 @@ func (a *Analyzer) Run(ctx context.Context, diff string) (*Report, error) {
 		sourceNames = append(sourceNames, s.Name())
 	}
 
-	builder := &reportBuilder{}
+	// Every successful source/repo tool input is recorded so evidence
+	// citations can be verified against work actually performed; the diff
+	// itself is seeded under "repo" since the model receives it without a
+	// tool call.
+	evlog := newEvidenceLog()
+	evlog.recordText("repo", diff)
+
+	builder := &reportBuilder{verify: evlog.verify}
 	tools := map[string]Tool{}
 	var defs []ToolDef
-	add := func(ts []Tool) {
+	add := func(source string, ts []Tool) {
 		for _, t := range ts {
+			if source != "" {
+				t.Handler = recordingHandler(evlog, source, t.Handler)
+			}
 			tools[t.Def.Name] = t
 			defs = append(defs, t.Def)
 		}
 	}
 	for _, s := range a.sources {
-		add(s.Tools())
+		add(s.Name(), s.Tools())
 	}
 	repoDoc := ""
 	if a.repo != nil {
-		add(a.repo.Tools())
+		add("repo", a.repo.Tools())
 		repoDoc = a.repo.Describe()
 	}
-	add(builder.Tools())
+	add("", builder.Tools())
 
 	system := buildSystemPrompt(sourceDocs, repoDoc, a.cfg)
 	conv := a.provider.Start(system, defs)

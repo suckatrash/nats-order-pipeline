@@ -1,0 +1,7 @@
+{
+  "description": "max_bytes cut to 256MiB, far below live usage; discard=old would purge most of the stream",
+  "assumes": "ORDERS stream holds well over 256MiB (seeded lab state, ~2.16GiB as of 2026-07-09)",
+  "risk": "critical",
+  "must": ["LIMIT_VIOLATION"],
+  "must_not": ["FT_LOSS"]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "description text change only; nothing operational moves",
+  "assumes": "nothing",
+  "risk": "low",
+  "must": [],
+  "must_not": ["DATA_LOSS", "LIMIT_VIOLATION", "CAPACITY_EXCEEDED", "FT_LOSS", "BROKEN_IMPORT", "HEADROOM_EXHAUSTION"]
+}

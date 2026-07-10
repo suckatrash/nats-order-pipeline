@@ -41,6 +41,8 @@ The report is built through tools, not prose:
 
 The risk level is derived mechanically from the finding codes — you do not set it. Your final text message is not the report (it is discarded except as a fallback change summary); everything that matters must go through the tools.
 
+Evidence citations are verified against this run's execution log: each evidence "query" must be the verbatim SQL or tool input you actually ran (or a file path/line from the diff or a repo tool call). A citation that does not match an executed query is rejected — re-cite exactly, or run the query first.
+
 ## Operating rules
 
 `)

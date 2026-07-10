@@ -1,0 +1,7 @@
+{
+  "description": "num_replicas 3->1 in the diff, but the stream already runs at R1; bait for FT_LOSS",
+  "assumes": "ORDERS stream is R1 in the lab (config drift: the checked-in file says 3)",
+  "risk": "low",
+  "must": [],
+  "must_not": ["FT_LOSS"]
+}

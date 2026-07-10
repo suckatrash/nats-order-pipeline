@@ -1,0 +1,13 @@
+diff --git a/deploy/streams/orders.json b/deploy/streams/orders.json
+index 1627da9..08b57f7 100644
+--- a/deploy/streams/orders.json
++++ b/deploy/streams/orders.json
+@@ -4,7 +4,7 @@
+   "retention": "limits",
+   "max_consumers": -1,
+   "max_msgs": -1,
+-  "max_bytes": 5368709120,
++  "max_bytes": 268435456,
+   "max_age": 0,
+   "max_msg_size": -1,
+   "storage": "file",

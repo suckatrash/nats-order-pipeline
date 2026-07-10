@@ -1,0 +1,11 @@
+diff --git a/deploy/streams/orders.json b/deploy/streams/orders.json
+index 1627da9..334374f 100644
+--- a/deploy/streams/orders.json
++++ b/deploy/streams/orders.json
+@@ -11,5 +11,5 @@
+   "discard": "old",
+   "num_replicas": 3,
+   "duplicate_window": 120000000000,
+-  "description": "Order lifecycle events"
++  "description": "Order lifecycle event log"
+ }

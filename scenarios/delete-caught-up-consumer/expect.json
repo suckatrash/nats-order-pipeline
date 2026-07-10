@@ -1,0 +1,7 @@
+{
+  "description": "delete the order-notifier consumer while it is fully caught up; bait for DATA_LOSS",
+  "assumes": "order-notifier consumer exists in the lab with lag=0",
+  "risk": "low",
+  "must": [],
+  "must_not": ["DATA_LOSS"]
+}

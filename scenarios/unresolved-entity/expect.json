@@ -1,0 +1,7 @@
+{
+  "description": "diff modifies a consumer (order-billing) that exists neither in the repo nor in the data",
+  "assumes": "no consumer named order-billing exists in the lab",
+  "risk": "low",
+  "must": ["UNRESOLVED_ENTITY"],
+  "must_not": ["DATA_LOSS", "LIMIT_VIOLATION"]
+}

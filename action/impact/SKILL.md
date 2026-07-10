@@ -302,7 +302,7 @@ Findings are restricted to a **fixed catalog**. Emit a finding only when its req
 
 Rules:
 
-- **Every finding cites its evidence**: the queried values, the epoch they came from, and the query that produced them.
+- **Every finding cites its evidence**: the queried values, the epoch they came from, and the query that produced them. Cite the query **verbatim as executed** — citations are checked against the run's execution log, and evidence citing a query that was never run is rejected.
 - **Freshness gate**: evidence must come from the latest available epoch. If the newest data is stale (older than ~10m, or the configured bound), suppress the finding and note the degraded data instead.
 - **Ambiguity gate**: no findings against ambiguous entities — surface the ambiguity as `UNRESOLVED_ENTITY` with the candidate list.
 - **No speculation**: observations that don't meet a catalog entry's bar (code-style concerns, "this might be risky", missing DLQs on unaffected paths) are not findings. At most they go in a non-scored **Notes** section, and only when directly related to a changed entity. Notes carry evidence exactly like findings: `file:line` for repo observations, query + value + epoch for data observations. A note the reader can't verify is dropped.

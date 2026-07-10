@@ -1,0 +1,14 @@
+diff --git a/deploy/consumers/order-notifier.json b/deploy/consumers/order-notifier.json
+deleted file mode 100644
+index fca2e5b..0000000
+--- a/deploy/consumers/order-notifier.json
++++ /dev/null
+@@ -1,8 +0,0 @@
+-{
+-  "durable_name": "order-notifier",
+-  "filter_subject": "ORDERS.processed",
+-  "ack_policy": "explicit",
+-  "max_ack_pending": 100,
+-  "ack_wait": 10000000000,
+-  "description": "Sends notifications for processed orders"
+-}

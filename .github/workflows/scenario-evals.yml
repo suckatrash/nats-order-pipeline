@@ -1,0 +1,47 @@
+name: Scenario Evals
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Run a single scenario by name (empty = full suite)'
+        required: false
+        default: ''
+      runs:
+        description: 'Repeats per scenario (consistency check)'
+        required: false
+        default: '1'
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: action/go.mod
+          cache-dependency-path: '**/go.sum'
+
+      - name: Write NATS credentials
+        run: |
+          echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > /tmp/insights.creds
+          chmod 600 /tmp/insights.creds
+
+      - name: Run scenarios
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INSIGHTS_NATS_SERVER: ${{ secrets.INSIGHTS_NATS_SERVER }}
+          INSIGHTS_NATS_CREDS: /tmp/insights.creds
+          RUNS: ${{ inputs.runs }}
+        run: scenarios/run.sh ${{ inputs.scenario }}
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-reports
+          path: |
+            scenarios/*/last-report.json
+            scenarios/*/last-run.log
+          if-no-files-found: ignore

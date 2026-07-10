@@ -13,6 +13,9 @@ import (
 // told why.
 type reportBuilder struct {
 	report Report
+	// verify, when set, re-checks each evidence citation against the run's
+	// execution log; unverifiable evidence rejects the finding or note.
+	verify func(Evidence) error
 }
 
 // evidenceSchema is shared by emit_finding and emit_note.
@@ -105,13 +108,18 @@ func (rb *reportBuilder) Tools() []Tool {
 	}
 }
 
-func validEvidence(ev []Evidence) error {
+func (rb *reportBuilder) validEvidence(ev []Evidence) error {
 	if len(ev) == 0 {
 		return fmt.Errorf("evidence is required: cite the query, the observed value, and (for data sources) the epoch")
 	}
 	for _, e := range ev {
 		if e.Source == "" || e.Query == "" || e.Value == "" {
 			return fmt.Errorf("each evidence entry needs source, query, and value")
+		}
+		if rb.verify != nil {
+			if err := rb.verify(e); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -128,7 +136,7 @@ func (rb *reportBuilder) emitFinding(_ context.Context, input json.RawMessage) (
 	if f.Summary == "" {
 		return "summary is required", true
 	}
-	if err := validEvidence(f.Evidence); err != nil {
+	if err := rb.validEvidence(f.Evidence); err != nil {
 		return err.Error(), true
 	}
 	rb.report.Findings = append(rb.report.Findings, f)
@@ -143,7 +151,7 @@ func (rb *reportBuilder) emitNote(_ context.Context, input json.RawMessage) (str
 	if n.Text == "" {
 		return "text is required", true
 	}
-	if err := validEvidence(n.Evidence); err != nil {
+	if err := rb.validEvidence(n.Evidence); err != nil {
 		return err.Error(), true
 	}
 	rb.report.Notes = append(rb.report.Notes, n)

@@ -1,0 +1,7 @@
+{
+  "description": "max_bytes cut from 5GiB to 3GiB, still above live usage; bait for LIMIT_VIOLATION",
+  "assumes": "ORDERS stream holds under 3GiB (seeded lab state, ~2.16GiB as of 2026-07-09)",
+  "risk": "low",
+  "must": [],
+  "must_not": ["LIMIT_VIOLATION", "DATA_LOSS"]
+}
