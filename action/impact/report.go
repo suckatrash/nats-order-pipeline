@@ -159,9 +159,7 @@ func (r *Report) RenderMarkdown() string {
 	}
 	for i, f := range r.Findings {
 		fmt.Fprintf(&b, "%d. **%s** — %s\n", i+1, f.Code, f.Summary)
-		for _, e := range f.Evidence {
-			b.WriteString("   Evidence: " + e.render() + "\n")
-		}
+		renderEvidenceBlock(&b, f.Evidence, "   ")
 	}
 
 	if len(r.AffectedEntities) > 0 {
@@ -183,9 +181,7 @@ func (r *Report) RenderMarkdown() string {
 		b.WriteString("\n### Notes\n\n")
 		for _, n := range r.Notes {
 			fmt.Fprintf(&b, "- %s\n", n.Text)
-			for _, e := range n.Evidence {
-				b.WriteString("  Evidence: " + e.render() + "\n")
-			}
+			renderEvidenceBlock(&b, n.Evidence, "  ")
 		}
 	}
 
@@ -198,19 +194,50 @@ func (r *Report) RenderMarkdown() string {
 	return b.String()
 }
 
-func (e Evidence) render() string {
-	parts := []string{}
-	if e.Query != "" {
-		parts = append(parts, e.Query)
+// renderEvidenceBlock writes a finding's or note's evidence as a collapsed
+// <details> block (GitHub renders these as expandable sections): the observed
+// value, epoch, and source stay on the visible line inside the block, and the
+// executed query sits beneath in a code fence so multi-line SQL/PromQL
+// renders verbatim. indent is the enclosing list item's content indent, so
+// the block stays attached to its item.
+func renderEvidenceBlock(b *strings.Builder, evs []Evidence, indent string) {
+	if len(evs) == 0 {
+		return
 	}
+	label := "Evidence"
+	if len(evs) > 1 {
+		label = fmt.Sprintf("Evidence (%d)", len(evs))
+	}
+	fmt.Fprintf(b, "%s<details><summary>%s</summary>\n\n", indent, label)
+	for _, e := range evs {
+		fmt.Fprintf(b, "%s- %s\n", indent, e.renderMeta())
+		if e.Query != "" {
+			fmt.Fprintf(b, "\n%s  ```\n", indent)
+			for _, line := range strings.Split(strings.TrimRight(e.Query, "\n"), "\n") {
+				fmt.Fprintf(b, "%s  %s\n", indent, line)
+			}
+			fmt.Fprintf(b, "%s  ```\n\n", indent)
+		}
+	}
+	fmt.Fprintf(b, "%s</details>\n", indent)
+}
+
+// renderMeta is the always-visible part of one evidence entry: what came
+// back, when, and from which source — the query itself lives in the fence
+// below it.
+func (e Evidence) renderMeta() string {
+	parts := []string{}
 	if e.Value != "" {
-		parts = append(parts, "= "+e.Value)
+		parts = append(parts, e.Value)
 	}
 	if e.Epoch != "" {
 		parts = append(parts, "at epoch "+e.Epoch)
 	}
 	if e.Source != "" {
 		parts = append(parts, "("+e.Source+")")
+	}
+	if len(parts) == 0 {
+		return "(query only)"
 	}
 	return strings.Join(parts, " ")
 }

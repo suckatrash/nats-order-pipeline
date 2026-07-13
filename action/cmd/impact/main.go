@@ -118,6 +118,13 @@ func (a *analyzeCmd) Run(c *cli) error {
 		}
 		sources = append(sources, prom)
 	}
+	if cfg.Datasources.Natsdocs.IsEnabled() {
+		docs, err := impact.NewNatsdocs()
+		if err != nil {
+			return err
+		}
+		sources = append(sources, docs)
+	}
 
 	var repo *impact.RepoTools
 	if a.Repo != "" {

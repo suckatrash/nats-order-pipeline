@@ -78,10 +78,12 @@ type FindingsConfig struct {
 }
 
 // DatasourcesConfig lists the configured data sources. Insights is required;
-// prometheus is optional and adds infrastructure-layer visibility.
+// prometheus is optional and adds infrastructure-layer visibility; natsdocs
+// is the embedded NATS operation-cost reference and is on unless disabled.
 type DatasourcesConfig struct {
 	Insights   *InsightsConfig   `yaml:"insights"`
 	Prometheus *PrometheusConfig `yaml:"prometheus"`
+	Natsdocs   *NatsdocsConfig   `yaml:"natsdocs"`
 }
 
 // InsightsConfig connects to the Insights query API over NATS.
@@ -97,6 +99,18 @@ type PrometheusConfig struct {
 	URL      string `yaml:"url"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+// NatsdocsConfig gates the embedded NATS operation-cost knowledge source. It
+// carries no connection settings — the corpus ships inside the binary — so
+// the source defaults to enabled; set enabled: false to leave it out.
+type NatsdocsConfig struct {
+	Enabled *bool `yaml:"enabled"`
+}
+
+// IsEnabled is nil-safe so an absent natsdocs block means enabled.
+func (c *NatsdocsConfig) IsEnabled() bool {
+	return c == nil || c.Enabled == nil || *c.Enabled
 }
 
 // DefaultConfig returns the documented defaults; LoadConfig layers the file

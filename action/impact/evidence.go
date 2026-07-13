@@ -44,34 +44,25 @@ var citableKeys = map[string]bool{"sql": true, "query": true, "path": true, "pat
 
 // record captures the citable fields of a successful tool input under the
 // owning source. allowed restricts recording to the fields the tool's input
-// schema declares — a padded input cannot smuggle a citable value onto a tool
-// that does not execute it.
+// schema declares, and only at the top level of the input object — the level
+// the schema describes and the handler reads. A padded input cannot smuggle a
+// citable value onto a tool that does not execute it, whether beside the real
+// fields or nested inside an ignored one.
 func (l *evidenceLog) record(source string, input json.RawMessage, allowed map[string]bool) {
-	var parsed any
+	var parsed map[string]any
 	if err := json.Unmarshal(input, &parsed); err != nil {
 		return
 	}
 	key := strings.ToLower(source)
-	var walk func(v any)
-	walk = func(v any) {
-		switch t := v.(type) {
-		case map[string]any:
-			for k, mv := range t {
-				if s, ok := mv.(string); ok && allowed[k] {
-					if n := normalizeCitation(s); n != "" {
-						l.recorded[key] = append(l.recorded[key], n)
-					}
-					continue
-				}
-				walk(mv)
-			}
-		case []any:
-			for _, av := range t {
-				walk(av)
-			}
+	for k, v := range parsed {
+		s, ok := v.(string)
+		if !ok || !allowed[k] {
+			continue
+		}
+		if n := normalizeCitation(s); n != "" {
+			l.recorded[key] = append(l.recorded[key], n)
 		}
 	}
-	walk(parsed)
 }
 
 // citableFields intersects a tool's declared input properties with the

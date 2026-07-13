@@ -20,3 +20,8 @@ datasources:
     url: https://prometheus.gcp.iamusingtheinternet.com
     username: impact
     password: ${PROMETHEUS_PASSWORD}
+  # The natsdocs knowledge source (embedded nats-op-costs corpus on client
+  # operation costs) is on by default and needs no configuration; uncomment
+  # to disable it.
+  # natsdocs:
+  #   enabled: false

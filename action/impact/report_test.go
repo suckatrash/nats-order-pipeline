@@ -60,10 +60,16 @@ func TestRenderMarkdown(t *testing.T) {
 		"**Risk: CRITICAL**",
 		"data epoch 2026-07-09T14:32:00Z",
 		"**LIMIT_VIOLATION**",
-		"Evidence: SELECT bytes",
+		// Evidence collapses: value/epoch/source visible inside the details
+		// block, the query beneath in a code fence.
+		"   <details><summary>Evidence</summary>",
+		"   - 1.21 GiB at epoch 2026-07-09T14:32:00Z (insights)",
+		"     SELECT bytes FROM hx.stream_replica_stats WHERE ...",
+		"   </details>",
 		"| order-proc | consumer | PROD | consumes ORDERS |",
 		"1. Resolve audit-log lag",
 		"### Notes",
+		"  <details><summary>Evidence</summary>",
 		"claude-opus-4-8 · 84,312 tokens of 500,000 budget · 2m14s",
 	} {
 		is.True(strings.Contains(md, want)) // markdown must contain: want
