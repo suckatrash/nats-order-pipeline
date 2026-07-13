@@ -72,7 +72,9 @@ func main() {
 				msg.Nak()
 				return
 			}
-			msg.Ack()
+			if err := msg.DoubleAck(ctx); err != nil {
+				slog.Warn("ack not confirmed by server", "error", err)
+			}
 			n := rejected.Add(1)
 			if n%100 == 0 {
 				slog.Info("rejection progress", "rejected", n)
@@ -87,7 +89,9 @@ func main() {
 			msg.Nak()
 			return
 		}
-		msg.Ack()
+		if err := msg.DoubleAck(ctx); err != nil {
+			slog.Warn("ack not confirmed by server", "error", err)
+		}
 		n := processed.Add(1)
 		if n%1000 == 0 {
 			slog.Info("processing progress", "processed", n)
