@@ -13,6 +13,17 @@ type Order struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// OrderEnrichment contains customer context data attached to a processed order.
+type OrderEnrichment struct {
+	OrderID     string    `json:"order_id"`
+	Customer    string    `json:"customer"`
+	Location    string    `json:"location"`
+	Preferences []string  `json:"preferences"`
+	Referral    string    `json:"referral"`
+	RepeatBuys  int       `json:"repeat_buys"`
+	EnrichedAt  time.Time `json:"enriched_at"`
+}
+
 // AnalyticsSummary is a periodic summary of order activity.
 type AnalyticsSummary struct {
 	WindowStart     time.Time `json:"window_start"`

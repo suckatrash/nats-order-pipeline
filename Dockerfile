@@ -8,7 +8,8 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /app/order-api ./cmd/order-api && \
     CGO_ENABLED=0 go build -o /app/processor ./cmd/processor && \
     CGO_ENABLED=0 go build -o /app/notifier ./cmd/notifier && \
-    CGO_ENABLED=0 go build -o /app/analytics ./cmd/analytics
+    CGO_ENABLED=0 go build -o /app/analytics ./cmd/analytics && \
+    CGO_ENABLED=0 go build -o /app/enricher ./cmd/enricher
 
 FROM debian:bookworm-slim
 

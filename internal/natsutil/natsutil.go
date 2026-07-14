@@ -24,6 +24,7 @@ const (
 	SubjectOrderCreated   = "ORDERS.created"
 	SubjectOrderProcessed = "ORDERS.processed"
 	SubjectOrderRejected  = "ORDERS.rejected"
+	SubjectOrderEnriched  = "ORDERS.enriched"
 	SubjectOrdersAll      = "ORDERS.>"
 	SubjectAnalyticsSummary = "ANALYTICS.summary"
 )
@@ -32,6 +33,7 @@ const (
 const (
 	ConsumerProcessor = "order-processor"
 	ConsumerNotifier  = "order-notifier"
+	ConsumerEnricher  = "order-enricher"
 	ConsumerAnalytics = "order-analytics"
 )
 

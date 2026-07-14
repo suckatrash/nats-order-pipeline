@@ -100,6 +100,12 @@ func main() {
 	state := &windowState{start: time.Now()}
 
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
+		// Enrichment messages use a different payload; skip them.
+		if msg.Subject() == natsutil.SubjectOrderEnriched {
+			msg.Ack()
+			return
+		}
+
 		var order natsutil.Order
 		if err := json.Unmarshal(msg.Data(), &order); err != nil {
 			msg.Nak()
