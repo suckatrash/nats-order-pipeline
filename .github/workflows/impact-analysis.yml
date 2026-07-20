@@ -30,11 +30,24 @@ jobs:
           echo "${{ secrets.INSIGHTS_NATS_CREDS }}" > /tmp/insights.creds
           chmod 600 /tmp/insights.creds
 
-      # The action builds the impact CLI from action/ and runs it against the
-      # config in impact.yaml at the repo root; ${VAR} references in the
-      # config expand from the env the action sets.
-      - name: Run impact analysis
-        uses: ./action
+      # nats-impact is private under another owner, so a direct
+      # `uses: synadia-labs/nats-impact@v0.0.1` cannot resolve; check out the
+      # release tag with a read token and run the composite action from the
+      # local path. NATS_IMPACT_TOKEN is a fine-grained PAT with read-only
+      # Contents access to synadia-labs/nats-impact.
+      - name: Check out nats-impact
+        uses: actions/checkout@v4
+        with:
+          repository: synadia-labs/nats-impact
+          ref: v0.0.1
+          token: ${{ secrets.NATS_IMPACT_TOKEN }}
+          path: .nats-impact
+
+      # The action builds the impact CLI from the checked-out release and runs
+      # it against the config in impact.yaml at the repo root; ${VAR}
+      # references in the config expand from the env the action sets.
+      - name: Run impact assessment
+        uses: ./.nats-impact
         with:
           diff_file: /tmp/change.diff
           nats_server: ${{ secrets.INSIGHTS_NATS_SERVER }}

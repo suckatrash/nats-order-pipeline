@@ -72,14 +72,13 @@ docker run --rm order-pipeline /app/notifier
 docker run --rm order-pipeline /app/analytics
 ```
 
-## Impact Analysis Action
+## Impact Assessment Action
 
-The `action/` directory contains a custom GitHub Action that runs Claude-powered impact analysis on PRs. It:
+The Impact Analysis workflow runs the [synadia-labs/nats-impact](https://github.com/synadia-labs/nats-impact) composite action against each PR diff. nats-impact is private, so the workflow checks out the release tag with a read token and runs the action from the local path. It:
 
 1. Reads the PR diff
-2. Loads the impact-analysis skill from `.claude/skills/impact-analysis/SKILL.md`
-3. Runs a Claude API tool-use loop, executing queries against a live Insights instance over NATS
-4. Posts the analysis as a PR comment
+2. Runs an evidence-gated impact assessment, querying a live Insights instance over NATS (and optionally Prometheus)
+3. Posts the report as a PR comment
 
 ### Required Secrets
 
@@ -88,6 +87,8 @@ The `action/` directory contains a custom GitHub Action that runs Claude-powered
 | `ANTHROPIC_API_KEY` | Claude API access |
 | `INSIGHTS_NATS_SERVER` | NATS server URL (e.g. `nats://nats1.gcp.iamusingtheinternet.com:4222`) |
 | `INSIGHTS_NATS_CREDS` | NATS credentials file content (read-only query access) |
+| `PROMETHEUS_PASSWORD` | Basic-auth password for the lab Prometheus ingress |
+| `NATS_IMPACT_TOKEN` | Fine-grained PAT with read-only Contents access to synadia-labs/nats-impact |
 
 ### Test Scenarios
 
