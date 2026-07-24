@@ -14,11 +14,20 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/synadia-io/nats-order-pipeline/internal/natsutil"
+	"github.com/synadia-io/nats-order-pipeline/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	shutdownTracing, err := tracing.Init(ctx, "order-notifier")
+	if err != nil {
+		slog.Error("failed to init tracing", "error", err)
+		os.Exit(1)
+	}
+	defer func() { _ = shutdownTracing(context.Background()) }()
 
 	nc, err := natsutil.Connect("order-notifier")
 	if err != nil {
@@ -53,12 +62,17 @@ func main() {
 
 	var notified atomic.Int64
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
+		_, span := tracing.StartProcess(context.Background(), msg.Subject(), msg.Headers())
+		defer span.End()
+
 		var order natsutil.Order
 		if err := json.Unmarshal(msg.Data(), &order); err != nil {
+			tracing.RecordError(span, err)
 			slog.Warn("unmarshal failed", "error", err)
 			msg.Nak()
 			return
 		}
+		span.SetAttributes(attribute.String("order.id", order.ID))
 
 		// Occasional back-pressure simulation (~2% of messages).
 		if rand.IntN(100) < 2 {

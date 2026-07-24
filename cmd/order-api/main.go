@@ -15,8 +15,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/synadia-io/nats-order-pipeline/internal/natsutil"
+	"github.com/synadia-io/nats-order-pipeline/internal/tracing"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var orderCounter atomic.Int64
@@ -24,6 +30,13 @@ var orderCounter atomic.Int64
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	shutdownTracing, err := tracing.Init(ctx, "order-api")
+	if err != nil {
+		slog.Error("failed to init tracing", "error", err)
+		os.Exit(1)
+	}
+	defer func() { _ = shutdownTracing(context.Background()) }()
 
 	nc, err := natsutil.Connect("order-api")
 	if err != nil {
@@ -46,6 +59,11 @@ func main() {
 	// HTTP API for external order submission.
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /order", func(w http.ResponseWriter, r *http.Request) {
+		// Continue any inbound trace, then root the order's trace here.
+		reqCtx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+		reqCtx, span := tracing.Tracer().Start(reqCtx, "POST /order", trace.WithSpanKind(trace.SpanKindServer))
+		defer span.End()
+
 		var order natsutil.Order
 		if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
 			http.Error(w, "invalid order JSON", http.StatusBadRequest)
@@ -55,8 +73,7 @@ func main() {
 		order.Status = "created"
 		order.CreatedAt = time.Now()
 
-		data, _ := json.Marshal(order)
-		if _, err := js.Publish(ctx, natsutil.SubjectOrderCreated, data); err != nil {
+		if err := publishOrder(reqCtx, js, natsutil.SubjectOrderCreated, order); err != nil {
 			http.Error(w, "publish failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -86,6 +103,25 @@ func main() {
 	srv.Shutdown(context.Background())
 }
 
+// publishOrder marshals order and publishes it to subject with a producer span,
+// injecting the trace context into the NATS message headers so downstream
+// consumers continue the same trace.
+func publishOrder(ctx context.Context, js jetstream.JetStream, subject string, order natsutil.Order) error {
+	data, _ := json.Marshal(order)
+
+	ctx, span := tracing.StartPublish(ctx, subject)
+	defer span.End()
+	span.SetAttributes(attribute.String("order.id", order.ID))
+
+	msg := nats.NewMsg(subject)
+	msg.Data = data
+	tracing.Inject(ctx, msg.Header)
+
+	_, err := js.PublishMsg(ctx, msg)
+	tracing.RecordError(span, err)
+	return err
+}
+
 var products = []string{"widget-a", "widget-b", "gadget-x", "gadget-y", "gizmo-1"}
 var customers = []string{"acme-corp", "globex", "initech", "umbrella", "wayne-ent", "stark-ind"}
 
@@ -111,8 +147,7 @@ func generateTraffic(ctx context.Context, js jetstream.JetStream, rate int) {
 				Status:    "created",
 				CreatedAt: time.Now(),
 			}
-			data, _ := json.Marshal(order)
-			if _, err := js.Publish(ctx, natsutil.SubjectOrderCreated, data); err != nil {
+			if err := publishOrder(ctx, js, natsutil.SubjectOrderCreated, order); err != nil {
 				slog.Warn("publish failed", "error", err)
 				continue
 			}

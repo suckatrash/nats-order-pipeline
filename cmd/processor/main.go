@@ -12,13 +12,23 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/synadia-io/nats-order-pipeline/internal/natsutil"
+	"github.com/synadia-io/nats-order-pipeline/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	shutdownTracing, err := tracing.Init(ctx, "order-processor")
+	if err != nil {
+		slog.Error("failed to init tracing", "error", err)
+		os.Exit(1)
+	}
+	defer func() { _ = shutdownTracing(context.Background()) }()
 
 	nc, err := natsutil.Connect("order-processor")
 	if err != nil {
@@ -53,12 +63,17 @@ func main() {
 
 	var processed, rejected atomic.Int64
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
+		ctx, span := tracing.StartProcess(context.Background(), msg.Subject(), msg.Headers())
+		defer span.End()
+
 		var order natsutil.Order
 		if err := json.Unmarshal(msg.Data(), &order); err != nil {
+			tracing.RecordError(span, err)
 			slog.Warn("unmarshal failed", "error", err)
 			msg.Nak()
 			return
 		}
+		span.SetAttributes(attribute.String("order.id", order.ID))
 
 		// Simulated processing latency (~50ms).
 		time.Sleep(time.Duration(30+rand.IntN(40)) * time.Millisecond)
@@ -66,8 +81,8 @@ func main() {
 		// ~5% rejection rate for realistic variety.
 		if rand.IntN(100) < 5 {
 			order.Status = "rejected"
-			data, _ := json.Marshal(order)
-			if err := nc.Publish(natsutil.SubjectOrderRejected, data); err != nil {
+			if err := publishStatus(ctx, nc, natsutil.SubjectOrderRejected, order); err != nil {
+				tracing.RecordError(span, err)
 				slog.Warn("publish rejected failed", "error", err)
 				msg.Nak()
 				return
@@ -81,8 +96,8 @@ func main() {
 		}
 
 		order.Status = "processed"
-		data, _ := json.Marshal(order)
-		if err := nc.Publish(natsutil.SubjectOrderProcessed, data); err != nil {
+		if err := publishStatus(ctx, nc, natsutil.SubjectOrderProcessed, order); err != nil {
+			tracing.RecordError(span, err)
 			slog.Warn("publish processed failed", "error", err)
 			msg.Nak()
 			return
@@ -102,4 +117,23 @@ func main() {
 	slog.Info("processor running")
 	<-ctx.Done()
 	slog.Info("shutting down", "processed", processed.Load(), "rejected", rejected.Load())
+}
+
+// publishStatus publishes order to subject over core NATS with a producer span,
+// injecting the trace context (extracted from the inbound message) into the
+// outbound headers so the notifier and analytics services continue the trace.
+func publishStatus(ctx context.Context, nc *nats.Conn, subject string, order natsutil.Order) error {
+	data, _ := json.Marshal(order)
+
+	ctx, span := tracing.StartPublish(ctx, subject)
+	defer span.End()
+	span.SetAttributes(attribute.String("order.id", order.ID))
+
+	msg := nats.NewMsg(subject)
+	msg.Data = data
+	tracing.Inject(ctx, msg.Header)
+
+	err := nc.PublishMsg(msg)
+	tracing.RecordError(span, err)
+	return err
 }
