@@ -11,8 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/synadia-io/nats-order-pipeline/internal/natsutil"
+	"github.com/synadia-io/nats-order-pipeline/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type windowState struct {
@@ -58,9 +61,34 @@ func (w *windowState) flush() natsutil.AnalyticsSummary {
 	return summary
 }
 
+// publishSummary publishes an analytics summary with a producer span, injecting
+// trace context into the message headers.
+func publishSummary(ctx context.Context, js jetstream.JetStream, summary natsutil.AnalyticsSummary) error {
+	data, _ := json.Marshal(summary)
+
+	ctx, span := tracing.StartPublish(ctx, natsutil.SubjectAnalyticsSummary)
+	defer span.End()
+	span.SetAttributes(attribute.Int("orders.total", summary.TotalOrders))
+
+	msg := nats.NewMsg(natsutil.SubjectAnalyticsSummary)
+	msg.Data = data
+	tracing.Inject(ctx, msg.Header)
+
+	_, err := js.PublishMsg(ctx, msg)
+	tracing.RecordError(span, err)
+	return err
+}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	shutdownTracing, err := tracing.Init(ctx, "order-analytics")
+	if err != nil {
+		slog.Error("failed to init tracing", "error", err)
+		os.Exit(1)
+	}
+	defer func() { _ = shutdownTracing(context.Background()) }()
 
 	nc, err := natsutil.Connect("order-analytics")
 	if err != nil {
@@ -100,11 +128,16 @@ func main() {
 	state := &windowState{start: time.Now()}
 
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
+		_, span := tracing.StartProcess(context.Background(), msg.Subject(), msg.Headers())
+		defer span.End()
+
 		var order natsutil.Order
 		if err := json.Unmarshal(msg.Data(), &order); err != nil {
+			tracing.RecordError(span, err)
 			msg.Nak()
 			return
 		}
+		span.SetAttributes(attribute.String("order.id", order.ID))
 		state.record(order)
 		msg.Ack()
 	})
@@ -130,8 +163,7 @@ func main() {
 			if summary.TotalOrders == 0 {
 				continue
 			}
-			data, _ := json.Marshal(summary)
-			if _, err := js.Publish(ctx, natsutil.SubjectAnalyticsSummary, data); err != nil {
+			if err := publishSummary(ctx, js, summary); err != nil {
 				slog.Warn("publish summary failed", "error", err)
 				continue
 			}
